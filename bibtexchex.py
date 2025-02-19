@@ -35,6 +35,15 @@ The other output file contains those entries that either:
     not appear in the LaTeX file (i.e. undefined entries). The LaTeX compiler
     already does that for you. It will tell you how many you are missing
     though, as a compromise.
+
+!!! note
+
+    You need to have a NASA/ADS token exported to the `ADS_TOKEN` environment
+    variable, if you want to do NASA/ADS things.
+
+    See the NASA/ADS API documentation for how to get one:
+
+        https://ui.adsabs.harvard.edu/help/api/
 """
 import argparse
 import logging
@@ -65,6 +74,25 @@ class AmbiguousBibNodeError(Exception): ...
 
 
 def _get_auth_header() -> dict[str, str]:
+    if not ADS_TOKEN:
+        print(
+            """
+Error: NO ADS TOKEN
+
+Please export an ADS API access token to the `ADS_TOKEN` environment
+variable. On most shells this can be done with:
+
+    export ADS_TOKEN="..."
+
+You can get a token (for free) by following the instructions here:
+
+    https://ui.adsabs.harvard.edu/help/api/
+
+DO NOT SHARE YOUR TOKEN WITH ANYONE.
+"""
+        )
+        exit(1)
+
     return {"Authorization": "Bearer " + ADS_TOKEN}
 
 
