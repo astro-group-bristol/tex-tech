@@ -73,6 +73,10 @@ logger = logging.getLogger(__name__)
 class AmbiguousBibNodeError(Exception): ...
 
 
+def _unescape_bibcode(code: str) -> str:
+    return code.replace("\&", "&")
+
+
 def _get_auth_header() -> dict[str, str]:
     if not ADS_TOKEN:
         print(
@@ -267,7 +271,7 @@ def main_entry(
         try:
             query = bib_extract_query(bib_contents, item)
             if "bibcode" in query:
-                bibcodes.append((query["bibcode"], item.value))
+                bibcodes.append((_unescape_bibcode(query["bibcode"]), item.value))
             else:
                 queries.append((i, query))
         except AmbiguousBibNodeError:
@@ -297,7 +301,7 @@ def main_entry(
         for i, (index, q) in enumerate(queries):
             try:
                 bibcode = ads_search_bibcode(q)
-                bibcodes.append((bibcode, ads_needed[index].value))
+                bibcodes.append((_unescape_bibcode(bibcode), ads_needed[index].value))
             except Exception as e:
                 errors.append((index, q, e))
 
@@ -318,7 +322,7 @@ def main_entry(
         new_bib = ads_make_bib([i[0] for i in bibcodes])
 
         # rewrite the labels
-        for (code, label) in bibcodes:
+        for code, label in bibcodes:
             new_bib = new_bib.replace(code, label, 1)
 
         with open(outpath, "w") as f:
