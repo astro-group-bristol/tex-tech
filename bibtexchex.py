@@ -74,7 +74,7 @@ class AmbiguousBibNodeError(Exception): ...
 
 
 def _unescape_bibcode(code: str) -> str:
-    return code.replace("\&", "&")
+    return code.replace("\\&", "&")
 
 
 def _get_auth_header() -> dict[str, str]:
