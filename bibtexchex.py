@@ -177,11 +177,6 @@ def check_cits(tex_cits: set[Node], bib_cits: set[Node]):
     return [i for i in bib_cits if i in tex_cits], tex_cits.difference(bib_cits)
 
 
-def bib_node_is_ads(bib: str, node: Node) -> bool:
-    details = bib[node.start : node.end]
-    return "adsurl =" in details
-
-
 def findfirst(expr: re.Pattern, text: str) -> None | re.Match:
     matches = [i for i in re.finditer(expr, text)]
     if matches:
@@ -203,7 +198,9 @@ def bib_extract_query(bib: str, node: Node) -> dict[str, str]:
     """
     details = bib[node.start : node.end]
 
-    fields = re.finditer(r"\b(doi|note|url|journal)\s*=\s*\{(?P<info>[^\}]+)}", details)
+    fields = re.finditer(
+        r"\b(adsurl|doi|note|url|journal)\s*=\s*\{(?P<info>[^\}]+)}", details
+    )
 
     query = {}
     for i in fields:
@@ -223,7 +220,7 @@ def bib_extract_query(bib: str, node: Node) -> dict[str, str]:
             if bibcode:
                 query["bibcode"] = bibcode.group("identifier")
 
-        elif _type == "url":
+        elif _type == "url" or _type == "adsurl":
             url = i.group("info")
 
             arxiv = findfirst(r"arxiv\.org\/(abs|pdf)\/(?P<identifier>[^ \/]+)", url)
@@ -259,15 +256,14 @@ def main_entry(
     bib_cits = set(bib_all_citations(bib_contents))
 
     needed, missing = check_cits(tex_cits, bib_cits)
-    ads_needed = [i for i in needed if not bib_node_is_ads(bib_contents, i)]
 
     failed: list[Node] = []
     # list of bibcodes and what their label should be
     bibcodes: list[tuple[str, str]] = []
-    # list of ads_needed indices and corresponding queries
+    # list of `needed` indices and corresponding queries
     queries: list[tuple[int, dict[str, str]]] = []
 
-    for i, item in enumerate(ads_needed):
+    for i, item in enumerate(needed):
         try:
             query = bib_extract_query(bib_contents, item)
             if "bibcode" in query:
@@ -282,7 +278,7 @@ def main_entry(
     print(f" BibTeX entries    : {len(bib_cits)}")
     print(f" . needed entries  : {len(needed)}")
     print(f" . missing entries : {len(missing)}")
-    print(f" Missing ADS url   : {len(ads_needed)}")
+    print(f" Missing ADS url   : {len(bibcodes) + len(queries) + len(failed)}")
     print(f" . has bibcode     : {len(bibcodes)}")
     print(f" . has query       : {len(queries)}")
     print(f" . no query        : {len(failed)}")
@@ -301,7 +297,7 @@ def main_entry(
         for i, (index, q) in enumerate(queries):
             try:
                 bibcode = ads_search_bibcode(q)
-                bibcodes.append((_unescape_bibcode(bibcode), ads_needed[index].value))
+                bibcodes.append((_unescape_bibcode(bibcode), needed[index].value))
             except Exception as e:
                 errors.append((index, q, e))
 
@@ -315,7 +311,7 @@ def main_entry(
 
         missing_bib = [
             bib_contents[i.start : i.end]
-            for i in itertools.chain(failed, (ads_needed[i[0]] for i in errors))
+            for i in itertools.chain(failed, (needed[i[0]] for i in errors))
         ]
 
         # fetch all of the bibcodes
