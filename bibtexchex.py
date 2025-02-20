@@ -314,11 +314,20 @@ def main_entry(
             for i in itertools.chain(failed, (needed[i[0]] for i in errors))
         ]
 
+        canonical_labels = {}
+        for code, label in bibcodes:
+            if code in canonical_labels:
+                print(
+                    f"Warning: '{label}' is a duplicate of '{canonical_labels[code]}' ({code})"
+                )
+            else:
+                canonical_labels[code] = label
+
         # fetch all of the bibcodes
-        new_bib = ads_make_bib([i[0] for i in bibcodes])
+        new_bib = ads_make_bib(list(canonical_labels.keys()))
 
         # rewrite the labels
-        for code, label in bibcodes:
+        for code, label in canonical_labels.items():
             new_bib = new_bib.replace(code, label, 1)
 
         with open(outpath, "w") as f:
