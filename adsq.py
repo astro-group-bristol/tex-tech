@@ -32,6 +32,7 @@ ADS_QUERY_URL = "https://api.adsabs.harvard.edu/v1/search/query"
 ADS_EXPORT_BIBTEX_URL = "https://api.adsabs.harvard.edu/v1/export/bibtex"
 ADS_TOKEN = os.environ.get("ADS_TOKEN")
 ADS_BIBTEX_URL = "https://api.adsabs.harvard.edu/v1/export/bibtex"
+MAX_AUTHORS = 4
 BIBCODE_PATTERN = r"^[a-zA-Z0-9]+\.+[a-zA-Z0-9]+\.+[a-zA-Z0-9]+$"
 
 logger = logging.getLogger(__name__)
@@ -102,31 +103,39 @@ def _canonical_name(author: str) -> str:
 
 def pretty_print_doc(doc: dict):
     _done = set()
-    s = ""
+    s : list[tuple[str, list[str]]] = []
 
     if "author" in doc:
-        author = "; ".join(_canonical_name(i) for i in doc["author"])
-        s += f"Author: {author}\n"
+        authors = doc["author"]
+        formatted_authors = [
+            _canonical_name(i) for i in authors[0 : min(len(authors), MAX_AUTHORS)]
+        ]
+
+        if len(authors) > MAX_AUTHORS:
+            formatted_authors.append("et al.")
+
+        author = "; ".join(formatted_authors)
+        s.append(("Author", [author]))
         _done.add("author")
 
     if "date" in doc:
         date = doc["date"]
-        s += f"Date: {date}\n"
+        s.append(("Date", [date]))
         _done.add("date")
 
     if "title" in doc:
         title = "; ".join(doc["title"])
-        s += f"Title: {title}\n"
+        s.append(("Title", [title]))
         _done.add("title")
 
     if "bibcode" in doc:
         bibcode = doc["bibcode"]
-        s += f"BibCode: {bibcode}\n"
-        s += f"URL: https://ui.adsabs.harvard.edu/abs/{bibcode}/abstract\n"
+        s.append(("Bibcode", [bibcode]))
+        s.append(("URL", [f"https://ui.adsabs.harvard.edu/abs/{bibcode}/abstract"]))
         _done.add("bibcode")
 
     if "links_data" in doc:
-        s += "Links:\n"
+        links = []
         for link in doc["links_data"]:
             l = json.loads(link)
             link_type = l["type"]
@@ -137,21 +146,34 @@ def pretty_print_doc(doc: dict):
             if access:
                 suffix = f"({access})"
 
-            s += f"- {link_type} {suffix} {url}\n"
+            links.append(f"{link_type} {suffix} {url}")
 
+        s.append(("Links", links))
         _done.add("links_data")
 
     for k, v in doc.items():
         if not k in _done:
             if isinstance(v, list):
-                s += f"{k}:\n"
-                for value in v:
-                    s += f" - {value}\n"
+                s.append((k, v))
             else:
-                s += f"{k}: {v}\n"
+                s.append((k, [v]))
 
-    print(s)
+    padding = max(len(i[0]) for i in s) + 2
+    space = (" " * padding)
 
+    text = ""
+    for (k, lines) in s:
+        text += k.rjust(padding) + ": "
+        if len(lines) > 1:
+            for (i, v) in enumerate(lines):
+                if i == 0:
+                    text += "- " + str(v) + "\n"
+                else:
+                    text += space + "  - " + str(v) + "\n"
+        else:
+            text += str(lines[0]) + "\n"
+
+    print(text)
 
 def _ads_search_query(query: str, fields: str) -> http.client.HTTPResponse:
     encoded_query = "?q=" + query + "&fl=" + fields
