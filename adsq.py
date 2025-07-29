@@ -227,7 +227,7 @@ def run_query(query: ADSQuery, fields: str, as_json: bool):
     d = json.loads(data)
     docs = d["response"]["docs"]
 
-    for doc in docs:
+    for doc in sorted(docs, key=lambda x: x.get("citation_count", 0)):
         pretty_print_doc(doc)
 
 
