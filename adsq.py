@@ -1,4 +1,4 @@
-#!python3
+#!/usr/bin/python3
 # Written by Fergus Baker 2025 Copyleft GPL 3.0
 
 __doc__ = """
@@ -103,7 +103,7 @@ def _canonical_name(author: str) -> str:
 
 def pretty_print_doc(doc: dict):
     _done = set()
-    s : list[tuple[str, list[str]]] = []
+    s: list[tuple[str, list[str]]] = []
 
     if "author" in doc:
         authors = doc["author"]
@@ -159,13 +159,13 @@ def pretty_print_doc(doc: dict):
                 s.append((k, [v]))
 
     padding = max(len(i[0]) for i in s) + 2
-    space = (" " * padding)
+    space = " " * padding
 
     text = ""
-    for (k, lines) in s:
+    for k, lines in s:
         text += k.rjust(padding) + ": "
         if len(lines) > 1:
-            for (i, v) in enumerate(lines):
+            for i, v in enumerate(lines):
                 if i == 0:
                     text += "- " + str(v) + "\n"
                 else:
@@ -174,6 +174,7 @@ def pretty_print_doc(doc: dict):
             text += str(lines[0]) + "\n"
 
     print(text)
+
 
 def _ads_search_query(query: str, fields: str) -> http.client.HTTPResponse:
     encoded_query = "?q=" + query + "&fl=" + fields
