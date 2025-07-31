@@ -264,6 +264,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Output fetched JSON.",
     )
+    parser.add_argument(
+        "--bibcode",
+        action="store_true",
+        help="Force interpretation of the argument as a bibcode",
+    )
     parser.add_argument("terms", nargs="*")
     parser.add_argument(
         "--fields",
@@ -283,7 +288,7 @@ if __name__ == "__main__":
         not args.author
         and not args.year
         and args.terms
-        and all(is_bibcode(i) for i in args.terms)
+        and (all(is_bibcode(i) for i in args.terms) or args.bibcode)
     ):
         fetch_bibtex(args.terms, args.json)
     else:
