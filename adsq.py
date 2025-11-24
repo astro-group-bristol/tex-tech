@@ -265,6 +265,7 @@ if __name__ == "__main__":
         help="Output fetched JSON.",
     )
     parser.add_argument(
+        "-b",
         "--bibcode",
         action="store_true",
         help="Force interpretation of the argument as a bibcode",
