@@ -18,6 +18,7 @@ entries. Everything else will be treated as a search query.
 """
 import argparse
 import logging
+import textwrap
 import json
 import dataclasses
 import urllib.request
@@ -68,6 +69,15 @@ def _url_escape(s: str) -> str:
     return urllib.parse.quote_plus(s, safe="^")
 
 
+def _join_lines(lines, spacer="",prefix=""):
+    out = ""
+    for i, v in enumerate(lines):
+        if i == 0:
+            out += prefix + str(v) + "\n"
+        else:
+            out += spacer + "  " + prefix + str(v) + "\n"
+    return out
+
 @dataclasses.dataclass
 class ADSQuery:
     terms: None | list[str] = None
@@ -103,6 +113,7 @@ def _canonical_name(author: str) -> str:
 
 def pretty_print_doc(doc: dict):
     _done = set()
+    is_list = dict(Links=True)
     s: list[tuple[str, list[str]]] = []
 
     if "author" in doc:
@@ -134,6 +145,12 @@ def pretty_print_doc(doc: dict):
         s.append(("URL", [f"https://ui.adsabs.harvard.edu/abs/{bibcode}/abstract"]))
         _done.add("bibcode")
 
+    if "abstract" in doc:
+        abstract = doc["abstract"]
+        abstract_lines = textwrap.wrap(abstract, width=80)
+        s.append(("Abstract", abstract_lines))
+        _done.add("abstract")
+
     if "links_data" in doc:
         links = []
         for link in doc["links_data"]:
@@ -164,14 +181,10 @@ def pretty_print_doc(doc: dict):
     text = ""
     for k, lines in s:
         text += k.rjust(padding) + ": "
-        if len(lines) > 1:
-            for i, v in enumerate(lines):
-                if i == 0:
-                    text += "- " + str(v) + "\n"
-                else:
-                    text += space + "  - " + str(v) + "\n"
+        if is_list.get(k, False):
+            text += _join_lines(lines, spacer=space, prefix="- ")
         else:
-            text += str(lines[0]) + "\n"
+            text += _join_lines(lines, spacer=space)
 
     print(text)
 
@@ -245,7 +258,7 @@ def fetch_bibtex(terms: list[str], as_json: bool):
         return
 
     d = json.loads(data)
-    print(d["export"].strip())
+    return d["export"].strip()
 
 
 if __name__ == "__main__":
@@ -265,6 +278,11 @@ if __name__ == "__main__":
         help="Output fetched JSON.",
     )
     parser.add_argument(
+        "--abstract",
+        action="store_true",
+        help="Fetch and print the abstract.",
+    )
+    parser.add_argument(
         "-b",
         "--bibcode",
         action="store_true",
@@ -281,17 +299,35 @@ if __name__ == "__main__":
         help="Which databse to request from.",
         default="astronomy",
     )
+    parser.add_argument(
+        "--import",
+        action="store_true",
+        dest="import_",
+        help="Import the selected bibcode to bibl",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=args.loglevel.upper())
 
+    if (args.import_ and not args.bibcode):
+        print("Cannot use `--import` without `--bibcode`")
+        exit(1)
     if (
         not args.author
         and not args.year
         and args.terms
         and (all(is_bibcode(i) for i in args.terms) or args.bibcode)
     ):
-        fetch_bibtex(args.terms, args.json)
+        bibtex = fetch_bibtex(args.terms, args.json)
+        if args.import_:
+            ...
+        else:
+            print(bibtex)
+
     else:
+        fields = set(args.fields.split(","))
+        if args.abstract:
+            fields.add("abstract")
+
         query = ADSQuery(args.terms, args.author, args.year, args.database)
-        run_query(query, args.fields, args.json)
+        run_query(query, ",".join(fields), args.json)
